@@ -1,0 +1,30 @@
+[package]
+name = "mcpg-plugin-identity-oidc-core"
+version = "0.1.0-beta.10"
+license = "Apache-2.0"
+edition = "2024"
+description = "OIDC/OAuth verification library for MCPG — discovery, JWKS, JWT/introspection and the config types the gateway validates against"
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+mcpg-plugin-protocol = { git = "https://github.com/mcpg-dev/mcpg-plugin-protocol", tag = "v0.1.0-beta.13", version = "=0.1.0-beta.13" }
+anyhow = "1.0"
+async-trait = "0.1"
+base64 = "0.22"
+http = "1"
+jsonwebtoken = "10.4"
+metrics = "0.24"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+schemars = { version = "0.8", default-features = false, features = ["derive", "preserve_order"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1", features = ["sync", "rt", "time"] }
+tracing = "0.1"
+url = "2"
+
+[dev-dependencies]
+# The src test modules use #[tokio::test], which needs the macro features
+# declared on this crate's own dependency.
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
