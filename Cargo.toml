@@ -1,6 +1,6 @@
 [package]
 name = "mcpg-plugin-identity-oidc-core"
-version = "0.1.0-beta.20"
+version = "0.1.0-beta.21"
 license = "Apache-2.0"
 edition = "2024"
 description = "OIDC/OAuth verification library for MCPG — discovery, JWKS, JWT/introspection and the config types the gateway validates against"
@@ -9,12 +9,18 @@ description = "OIDC/OAuth verification library for MCPG — discovery, JWKS, JWT
 crate-type = ["rlib"]
 
 [dependencies]
-mcpg-plugin-protocol = { git = "https://github.com/mcpg-dev/mcpg-plugin-protocol", tag = "v0.1.0-beta.23", version = "=0.1.0-beta.23" }
+mcpg-plugin-protocol = { git = "https://github.com/mcpg-dev/mcpg-plugin-protocol", tag = "v0.1.0-beta.24", version = "=0.1.0-beta.24" }
 anyhow = "1.0"
 async-trait = "0.1"
 base64 = "0.22"
 http = "1"
-jsonwebtoken = "10.4"
+# jsonwebtoken 10 resolves its crypto backend from features and enables NEITHER
+# by default (`default = ["use_pem"]`), so a bare dependency compiles and then
+# panics at the first signature verification. A cdylib carries its own copy of
+# the process-level statics, so the host installing a provider does not reach
+# it — the backend has to be chosen here. `aws_lc_rs` matches every sibling
+# identity plugin.
+jsonwebtoken = { version = "10.4", default-features = false, features = ["aws_lc_rs", "use_pem"] }
 metrics = "0.24"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 schemars = { version = "0.8", default-features = false, features = ["derive", "preserve_order"] }
