@@ -18,4 +18,4 @@ pub use config::{
     ClaimMappingConfig, OidcOAuthConfig, OidcProviderConfig, TokenSourceConfig, VerificationConfig,
     parse_algorithm,
 };
-pub use resolver::{OidcIdentity, OidcOAuthResolver, OidcVerificationResult};
+pub use resolver::{OidcIdentity, OidcOAuthResolver, OidcVerificationResult, oidc_auth_provider};

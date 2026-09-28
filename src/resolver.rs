@@ -167,6 +167,14 @@ pub struct OidcIdentity {
     pub attributes: BTreeMap<String, String>,
 }
 
+/// The `auth_provider` reported for a verified identity of the provider
+/// labelled `provider_label` (its issuer). Principal keys embed it, so
+/// every surface that reports such an identity, or aliases another to it,
+/// derives it here.
+pub fn oidc_auth_provider(provider_label: &str) -> String {
+    format!("oidc_oauth:{provider_label}")
+}
+
 /// Result of an OIDC/OAuth verification attempt.
 #[derive(Debug)]
 pub enum OidcVerificationResult {
@@ -1214,13 +1222,14 @@ fn extract_unverified_issuer(token: &str) -> Option<String> {
 }
 
 /// Extract a string claim from a JSON value, supporting dotted paths like "realm_access.roles".
-fn extract_string_claim(claims: &serde_json::Value, path: &str) -> Option<String> {
+pub fn extract_string_claim(claims: &serde_json::Value, path: &str) -> Option<String> {
     let value = resolve_json_path(claims, path)?;
     value.as_str().map(String::from)
 }
 
-/// Extract string list claims from multiple paths in the JWT payload.
-fn extract_string_list_claims(claims: &serde_json::Value, paths: &[String]) -> Vec<String> {
+/// Extract string list claims from multiple paths in the JWT payload: the
+/// string members of an array, or the words of a space-separated string.
+pub fn extract_string_list_claims(claims: &serde_json::Value, paths: &[String]) -> Vec<String> {
     let mut result = Vec::new();
     for path in paths {
         if let Some(value) = resolve_json_path(claims, path) {
@@ -1472,6 +1481,16 @@ mod tests {
         });
         let result = extract_string_list_claims(&claims, &["realm_access.roles".to_owned()]);
         assert_eq!(result, vec!["admin", "user"]);
+    }
+
+    /// Principal keys and aliases compare this string, so its shape is
+    /// part of every principal already stored.
+    #[test]
+    fn auth_provider_names_the_provider_by_its_label() {
+        assert_eq!(
+            oidc_auth_provider("https://login.example.com/oauth2/default"),
+            "oidc_oauth:https://login.example.com/oauth2/default"
+        );
     }
 
     #[test]
