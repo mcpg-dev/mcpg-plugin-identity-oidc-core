@@ -165,6 +165,10 @@ pub struct OidcIdentity {
     pub scopes: Vec<String>,
     /// Extracted attributes from claim mappings.
     pub attributes: BTreeMap<String, String>,
+    /// The `cnf.jkt` thumbprint of a token bound to a key (RFC 9449 §6), from
+    /// the JWT or the introspection response. The resource refuses such a
+    /// token unless a DPoP proof of that key goes with it.
+    pub confirmation_jkt: Option<String>,
 }
 
 /// The `auth_provider` reported for a verified identity of the provider
@@ -981,7 +985,7 @@ impl ProviderState {
         // Extract attributes
         let mut attributes = BTreeMap::new();
         for (claim_name, attr_name) in &mappings.attribute_claim_mappings {
-            if let Some(value) = extract_string_claim(claims, claim_name) {
+            if let Some(value) = extract_attribute_claim(claims, claim_name) {
                 attributes.insert(attr_name.clone(), value);
             }
         }
@@ -1003,6 +1007,7 @@ impl ProviderState {
             roles,
             scopes,
             attributes,
+            confirmation_jkt: confirmation_jkt(claims),
         })
     }
 
@@ -1119,6 +1124,13 @@ impl OidcOAuthResolver {
         self.verify_token(token).await
     }
 
+    /// Verify `token`, an access token the caller already took from its
+    /// request, such as one presented with the `DPoP` scheme, against the
+    /// configured providers.
+    pub async fn verify_access_token(&self, token: &str) -> OidcVerificationResult {
+        self.verify_token(token).await
+    }
+
     /// Extract the raw token string from request headers.
     fn extract_token<'a>(&self, headers: &'a http::HeaderMap) -> Option<&'a str> {
         let header_name = self.token_source.effective_header_name();
@@ -1219,6 +1231,28 @@ fn extract_unverified_issuer(token: &str) -> Option<String> {
 
     let claims: serde_json::Value = serde_json::from_slice(&payload_bytes).ok()?;
     claims.get("iss").and_then(|v| v.as_str()).map(String::from)
+}
+
+/// The `jkt` member of a `cnf` claim (RFC 9449 §6.1), when it is a non-empty
+/// string.
+pub fn confirmation_jkt(claims: &serde_json::Value) -> Option<String> {
+    claims
+        .get("cnf")?
+        .get("jkt")?
+        .as_str()
+        .filter(|jkt| !jkt.is_empty())
+        .map(str::to_owned)
+}
+
+/// The value of the claim at `path` (dotted, like `extract_string_claim`)
+/// as an attribute: a string as it is, a number or boolean as its JSON
+/// text, an object or array as compact JSON. `null` maps to nothing.
+pub fn extract_attribute_claim(claims: &serde_json::Value, path: &str) -> Option<String> {
+    match resolve_json_path(claims, path)? {
+        serde_json::Value::Null => None,
+        serde_json::Value::String(value) => Some(value.clone()),
+        other => Some(other.to_string()),
+    }
 }
 
 /// Extract a string claim from a JSON value, supporting dotted paths like "realm_access.roles".
@@ -1442,6 +1476,30 @@ mod tests {
             resolve_json_path(&claims, "realm_access.roles"),
             Some(&serde_json::json!(["admin", "editor"]))
         );
+    }
+
+    #[test]
+    fn an_attribute_claim_maps_scalars_as_text_and_structures_as_json() {
+        let claims = serde_json::json!({
+            "acct": "acc_1",
+            "signed_in": true,
+            "level": 3,
+            "poppy": { "extensions": { "operations": { "version": "1" } } },
+            "cnf": { "jkt": "abc" },
+            "gone": null,
+        });
+        let attribute = |path| extract_attribute_claim(&claims, path);
+        assert_eq!(attribute("acct").as_deref(), Some("acc_1"));
+        assert_eq!(attribute("signed_in").as_deref(), Some("true"));
+        assert_eq!(attribute("level").as_deref(), Some("3"));
+        assert_eq!(
+            attribute("poppy.extensions").as_deref(),
+            Some(r#"{"operations":{"version":"1"}}"#)
+        );
+        assert_eq!(attribute("gone"), None);
+        assert_eq!(attribute("missing"), None);
+        assert_eq!(confirmation_jkt(&claims).as_deref(), Some("abc"));
+        assert_eq!(confirmation_jkt(&serde_json::json!({ "cnf": {} })), None);
     }
 
     #[test]

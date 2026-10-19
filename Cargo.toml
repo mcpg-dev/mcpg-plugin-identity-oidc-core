@@ -1,6 +1,6 @@
 [package]
 name = "mcpg-plugin-identity-oidc-core"
-version = "0.1.0-beta.40"
+version = "0.1.0-beta.41"
 license = "Apache-2.0"
 edition = "2024"
 description = "OIDC/OAuth verification library for MCPG — discovery, JWKS, JWT/introspection and the config types the gateway validates against"

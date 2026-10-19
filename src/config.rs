@@ -428,6 +428,9 @@ pub struct ClaimMappingConfig {
     pub role_claim_paths: Vec<String>,
     #[serde(default = "default_scope_claim_paths")]
     pub scope_claim_paths: Vec<String>,
+    /// Claim path (dotted, as `realm_access.roles`) to the identity
+    /// attribute it fills. A string claim maps as it is, a number or boolean
+    /// as its JSON text, an object or array as compact JSON.
     #[serde(default)]
     pub attribute_claim_mappings: BTreeMap<String, String>,
 }
