@@ -795,7 +795,7 @@ impl ProviderState {
                 validation.set_audience(&self.config.audiences);
                 required.push("aud");
             } else {
-                // Per MCP 2025-11-25 / SEP-1012 servers MUST validate
+                // MCP authorization (SEP-1012) requires servers to validate
                 // audience binding. If the operator configured no
                 // audiences, surface that as a warning rather than
                 // silently accepting any `aud` claim.
